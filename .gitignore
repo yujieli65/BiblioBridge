@@ -1,0 +1,13 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+*.log
+
+# Virtual environment
+venv/
+
+# PDF 临时文件
+*.pdf
+uploaded_files/
+cache/

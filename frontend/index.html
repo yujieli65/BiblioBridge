@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>PDF 双语阅读器</title>
+  <style>
+    body {
+      font-family: "Helvetica Neue", sans-serif;
+      background: #f7f9fc;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background-color: #1f2937;
+      color: white;
+      padding: 1em;
+      text-align: center;
+      font-size: 1.4em;
+    }
+
+    main {
+      max-width: 1200px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    .upload-box {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 10px;
+      align-items: center;
+    }
+
+    .progress-bar {
+      width: 100%;
+      background-color: #ddd;
+      height: 10px;
+      border-radius: 5px;
+      overflow: hidden;
+    }
+
+    .progress {
+      height: 100%;
+      background-color: #4caf50;
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    .status {
+      text-align: center;
+      margin: 10px 0;
+      color: #444;
+    }
+
+    .page-controls {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      margin: 15px 0;
+      align-items: center;
+    }
+
+    .reader {
+      border: 1px solid #ccc;
+      border-radius: 8px;
+      overflow-y: auto;
+      height: 70vh;
+      background: #fff;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+
+    .row {
+      display: flex;
+      gap: 20px;
+      padding: 15px 20px;
+      border-bottom: 1px solid #eee;
+    }
+
+    .para {
+      flex: 1;
+      line-height: 1.6;
+      min-height: 2em;
+      user-select: text;
+    }
+
+    .para:hover {
+      background-color: #f0f8ff;
+    }
+
+    .highlight {
+      background-color: #ffe9a8;
+    }
+
+    button {
+      padding: 0.5em 1em;
+      background-color: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    button:hover {
+      background-color: #1e40af;
+    }
+  </style>
+</head>
+<body>
+  <header>📘 PDF 双语阅读器</header>
+  <main>
+    <div class="upload-box">
+      <input type="file" id="pdfFile" accept="application/pdf" />
+      <button onclick="uploadPDF()">上传 PDF</button>
+    </div>
+
+    <div class="progress-bar">
+      <div id="bar" class="progress"></div>
+    </div>
+
+    <div class="status" id="status">请上传 PDF 文件</div>
+
+    <div class="page-controls" id="page-controls" style="display: none;">
+      <button onclick="prevPage()">上一页</button>
+      <span>第 <span id="pageNum">1</span> 页 / 共 <span id="totalPages">0</span> 页</span>
+      <button onclick="nextPage()">下一页</button>
+    </div>
+
+    <div class="reader" id="reader"></div>
+  </main>
+
+  <script>
+    let filename = "";
+    let currentPage = 0;
+    let totalPages = 0;
+
+    function uploadPDF() {
+      const file = document.getElementById("pdfFile").files[0];
+      if (!file) return alert("请选择 PDF 文件");
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      document.getElementById("status").innerText = "上传中...";
+      document.getElementById("bar").style.width = "10%";
+
+      fetch("http://127.0.0.1:8000/upload/", {
+        method: "POST",
+        body: formData,
+      })
+      .then(res => res.json())
+      .then(data => {
+        filename = data.filename;
+        totalPages = data.total_pages;
+        currentPage = 0;
+        document.getElementById("page-controls").style.display = "flex";
+        document.getElementById("totalPages").innerText = totalPages;
+        document.getElementById("bar").style.width = "100%";
+        loadPage(currentPage);
+      })
+      .catch(() => {
+        document.getElementById("status").innerText = "上传失败，请重试";
+        document.getElementById("bar").style.width = "0%";
+      });
+    }
+
+    function loadPage(page) {
+      if (page < 0 || page >= totalPages) return;
+
+      document.getElementById("status").innerText = `加载第 ${page + 1} 页...`;
+      fetch(`http://127.0.0.1:8000/get_page/?filename=${filename}&page=${page}`)
+        .then(res => res.json())
+        .then(data => {
+          const reader = document.getElementById("reader");
+          reader.innerHTML = "";
+          const original = data.original || [];
+          const translation = data.translation || [];
+
+          for (let i = 0; i < Math.max(original.length, translation.length); i++) {
+            const row = document.createElement("div");
+            row.className = "row";
+
+            const oDiv = document.createElement("div");
+            oDiv.className = "para original";
+            oDiv.textContent = original[i] || "";
+            oDiv.dataset.idx = i;
+
+            const tDiv = document.createElement("div");
+            tDiv.className = "para translation";
+            tDiv.textContent = translation[i] || "";
+            tDiv.dataset.idx = i;
+
+            // 点击高亮左右段落
+            oDiv.addEventListener("click", () => {
+              document.querySelectorAll(".highlight").forEach(e => e.classList.remove("highlight"));
+              oDiv.classList.add("highlight");
+              tDiv.classList.add("highlight");
+              tDiv.scrollIntoView({ behavior: "smooth", block: "center" });
+            });
+
+            row.appendChild(oDiv);
+            row.appendChild(tDiv);
+            reader.appendChild(row);
+          }
+
+          document.getElementById("pageNum").innerText = page + 1;
+          document.getElementById("status").innerText = `第 ${page + 1} 页加载完成`;
+        })
+        .catch(() => {
+          document.getElementById("status").innerText = "加载失败，请重试";
+        });
+    }
+
+    function prevPage() {
+      if (currentPage > 0) {
+        currentPage--;
+        loadPage(currentPage);
+      }
+    }
+
+    function nextPage() {
+      if (currentPage < totalPages - 1) {
+        currentPage++;
+        loadPage(currentPage);
+      }
+    }
+  </script>
+</body>
+</html>
