@@ -6,108 +6,108 @@
   <style>
     body {
       font-family: "Helvetica Neue", sans-serif;
-      background: #f4f6f9;
+      background: #f9fafb;
       margin: 0;
       padding: 0;
     }
     header {
-      background: #1f2937;
+      background-color: #1f2937;
       color: white;
       padding: 1em;
       text-align: center;
-      font-size: 1.4em;
+      font-size: 1.5em;
     }
     main {
       max-width: 1200px;
       margin: auto;
       padding: 20px;
     }
-    .controls {
+    .upload-controls, .progress-bar, .page-controls {
+      margin: 15px 0;
+    }
+    .upload-controls {
       display: flex;
       gap: 10px;
       align-items: center;
-      margin-bottom: 15px;
-      flex-wrap: wrap;
-    }
-    select, input[type="file"] {
-      padding: 0.4em;
-      font-size: 1em;
     }
     .progress-bar {
       height: 10px;
-      background: #ddd;
-      border-radius: 5px;
+      background: #e5e7eb;
+      border-radius: 6px;
       overflow: hidden;
-      margin: 10px 0;
     }
     .progress {
       height: 100%;
-      background: #4caf50;
+      background: #3b82f6;
       width: 0%;
       transition: width 0.3s ease;
     }
-    button {
-      padding: 0.6em 1em;
-      background: #2563eb;
-      color: white;
-      border: none;
-      border-radius: 5px;
-      cursor: pointer;
+    .status {
+      margin-top: 5px;
+      font-size: 0.95em;
+      color: #555;
     }
-    button:hover {
-      background: #1d4ed8;
+    .page-controls {
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      align-items: center;
     }
     .reader {
       height: 70vh;
-      overflow-y: auto;
-      background: white;
+      overflow-y: scroll;
       border: 1px solid #ccc;
       border-radius: 6px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      background: white;
       padding: 10px;
     }
     .row {
       display: flex;
       gap: 20px;
-      padding: 10px 0;
       border-bottom: 1px solid #eee;
+      padding: 10px 0;
     }
     .para {
       flex: 1;
       line-height: 1.6;
+      min-height: 2em;
+    }
+    .para:hover {
+      background: #f0f9ff;
     }
     .highlight {
-      background: #ffe9a8;
+      background-color: #ffe9a8;
     }
-    .page-controls {
-      margin: 15px 0;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 20px;
+    button {
+      padding: 0.5em 1em;
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-weight: 600;
+      cursor: pointer;
     }
-    .status {
-      color: #555;
-      margin: 10px 0;
+    button:hover {
+      background-color: #1d4ed8;
     }
   </style>
 </head>
 <body>
   <header>📘 PDF 双语阅读器</header>
   <main>
-    <div class="controls">
-      <select id="bookList" onchange="selectBook(this.value)"></select>
-      <input type="file" id="pdfFile" />
-      <button onclick="uploadPDF()">上传新书</button>
-      <button onclick="translateAll()">整书翻译</button>
+    <div class="upload-controls">
+      <input type="file" id="pdfFile" accept="application/pdf" />
+      <button onclick="uploadPDF()">上传 PDF</button>
+      <button onclick="startTranslate()">整书翻译</button>
     </div>
 
-    <div class="progress-bar">
-      <div class="progress" id="progressBar"></div>
-    </div>
-    <div class="status" id="status">请选择一本书</div>
+    <div class="progress-bar"><div id="uploadBar" class="progress"></div></div>
+    <div class="status" id="uploadStatus">请上传 PDF 文件</div>
 
-    <div class="page-controls">
+    <div class="progress-bar"><div id="translateBar" class="progress"></div></div>
+    <div class="status" id="translateStatus">翻译未开始</div>
+
+    <div class="page-controls" style="display:none;" id="pageControls">
       <button onclick="prevPage()">上一页</button>
       <span>第 <span id="pageNum">1</span> 页 / 共 <span id="totalPages">0</span> 页</span>
       <button onclick="nextPage()">下一页</button>
@@ -117,88 +117,108 @@
   </main>
 
   <script>
-    let currentBook = "";
+    let filename = "";
     let currentPage = 0;
     let totalPages = 0;
+    let translationInterval = null;
 
-    async function fetchBooks() {
-      const res = await fetch("http://127.0.0.1:8000/list_books");
-      const books = await res.json();
-      const select = document.getElementById("bookList");
-      select.innerHTML = "<option value=''>选择书籍</option>" + books.map(book => `<option value="${book}">${book}</option>`).join("");
-    }
-
-    function selectBook(name) {
-      if (!name) return;
-      currentBook = name;
-      currentPage = 0;
-      document.getElementById("status").innerText = `正在加载《${name}》...`;
-      loadPage(0);
-      updateProgress();
-    }
-
-    async function uploadPDF() {
-      const file = document.getElementById("pdfFile").files[0];
-      if (!file) return alert("请选择一个 PDF 文件");
+    function uploadPDF() {
+      const fileInput = document.getElementById("pdfFile");
+      const file = fileInput.files[0];
+      if (!file) return alert("请选择一个PDF文件");
 
       const formData = new FormData();
       formData.append("file", file);
 
-      document.getElementById("status").innerText = "上传中...";
-      document.getElementById("progressBar").style.width = "20%";
+      document.getElementById("uploadStatus").innerText = "上传中...";
+      document.getElementById("uploadBar").style.width = "10%";
 
-      const res = await fetch("http://127.0.0.1:8000/upload/", {
+      fetch("http://127.0.0.1:8000/upload/", {
         method: "POST",
         body: formData,
+      })
+      .then(res => res.json())
+      .then(data => {
+        filename = data.filename;
+        totalPages = data.total_pages;
+        currentPage = 0;
+        document.getElementById("uploadBar").style.width = "100%";
+        document.getElementById("uploadStatus").innerText = "上传完成 ✅";
+        document.getElementById("totalPages").innerText = totalPages;
+        document.getElementById("pageControls").style.display = "flex";
+        loadPage(currentPage);
+      })
+      .catch(() => {
+        document.getElementById("uploadStatus").innerText = "上传失败";
       });
-
-      const data = await res.json();
-      currentBook = data.filename;
-      totalPages = data.total_pages;
-      currentPage = 0;
-      document.getElementById("status").innerText = `上传成功：${data.filename}`;
-      await fetchBooks();
-      document.getElementById("bookList").value = data.filename;
-      loadPage(0);
     }
 
-    async function loadPage(page) {
-      const res = await fetch(`http://127.0.0.1:8000/get_page/?filename=${currentBook}&page=${page}`);
-      const data = await res.json();
-      const reader = document.getElementById("reader");
-      reader.innerHTML = "";
+    function startTranslate() {
+      if (!filename) return alert("请先上传 PDF 文件");
 
-      const original = data.original || [];
-      const translation = data.translation || [];
+      fetch(`http://127.0.0.1:8000/translate_all/?filename=${filename}`, { method: "POST" })
+        .then(() => {
+          document.getElementById("translateStatus").innerText = "正在整书翻译中...";
+          translationInterval = setInterval(checkTranslateProgress, 1000);
+        });
+    }
 
-      for (let i = 0; i < Math.max(original.length, translation.length); i++) {
-        const row = document.createElement("div");
-        row.className = "row";
+    function checkTranslateProgress() {
+      fetch(`http://127.0.0.1:8000/translation_status/?filename=${filename}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) return;
 
-        const o = document.createElement("div");
-        o.className = "para original";
-        o.dataset.idx = i;
-        o.innerText = original[i] || "";
+          const percent = Math.round((data.done / data.total) * 100);
+          document.getElementById("translateBar").style.width = percent + "%";
+          document.getElementById("translateStatus").innerText = `翻译进度：${data.done}/${data.total}`;
 
-        const t = document.createElement("div");
-        t.className = "para translation";
-        t.dataset.idx = i;
-        t.innerText = translation[i] || "";
+          if (data.done >= data.total && translationInterval) {
+            clearInterval(translationInterval);
+            document.getElementById("translateStatus").innerText = "整书翻译完成 ✅";
+          }
+        });
+    }
 
-        o.onclick = () => {
-          document.querySelectorAll(".highlight").forEach(el => el.classList.remove("highlight"));
-          o.classList.add("highlight");
-          t.classList.add("highlight");
-          t.scrollIntoView({ behavior: "smooth", block: "center" });
-        };
-
-        row.appendChild(o);
-        row.appendChild(t);
-        reader.appendChild(row);
-      }
+    function loadPage(page) {
+      if (page < 0 || page >= totalPages) return;
 
       document.getElementById("pageNum").innerText = page + 1;
-      document.getElementById("status").innerText = `《${currentBook}》第 ${page + 1} 页`;
+      document.getElementById("reader").innerHTML = "加载中...";
+
+      fetch(`http://127.0.0.1:8000/get_page/?filename=${filename}&page=${page}`)
+        .then(res => res.json())
+        .then(data => {
+          const reader = document.getElementById("reader");
+          reader.innerHTML = "";
+
+          const original = data.original || [];
+          const translation = data.translation || [];
+
+          for (let i = 0; i < Math.max(original.length, translation.length); i++) {
+            const row = document.createElement("div");
+            row.className = "row";
+
+            const oPara = document.createElement("div");
+            oPara.className = "para original";
+            oPara.textContent = original[i] || "";
+
+            const tPara = document.createElement("div");
+            tPara.className = "para translation";
+            tPara.textContent = translation[i] || "";
+
+            oPara.onclick = () => {
+              document.querySelectorAll(".highlight").forEach(el => el.classList.remove("highlight"));
+              oPara.classList.add("highlight");
+              tPara.classList.add("highlight");
+              tPara.scrollIntoView({ behavior: "smooth", block: "center" });
+            };
+
+            row.appendChild(oPara);
+            row.appendChild(tPara);
+            reader.appendChild(row);
+          }
+        });
     }
 
     function prevPage() {
@@ -214,27 +234,6 @@
         loadPage(currentPage);
       }
     }
-
-    async function translateAll() {
-      if (!currentBook) return;
-      document.getElementById("status").innerText = "开始整书翻译中...";
-      await fetch(`http://127.0.0.1:8000/translate_all/?book=${currentBook}`, { method: "POST" });
-      updateProgress();
-    }
-
-    async function updateProgress() {
-      if (!currentBook) return;
-      const res = await fetch(`http://127.0.0.1:8000/translation_status/?book=${currentBook}`);
-      const data = await res.json();
-      if (data.total > 0) {
-        const percent = Math.round((data.done / data.total) * 100);
-        document.getElementById("progressBar").style.width = percent + "%";
-        document.getElementById("totalPages").innerText = data.total;
-      }
-    }
-
-    setInterval(updateProgress, 3000);
-    fetchBooks();
   </script>
 </body>
 </html>
