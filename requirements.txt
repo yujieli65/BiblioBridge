@@ -6,3 +6,4 @@ torch
 aiofiles
 python-multipart
 sentencepiece
+Jinja2

@@ -1,12 +1,27 @@
 import os, shutil, json, asyncio, re
 from typing import List, Dict
-from fastapi import FastAPI, UploadFile, File, Query
+from fastapi import FastAPI, UploadFile, File, Query, Request
+from fastapi.responses import HTMLResponse
+from fastapi.staticfiles import StaticFiles
+from fastapi.templating import Jinja2Templates
+
 from fastapi.middleware.cors import CORSMiddleware
 from transformers import MarianMTModel, MarianTokenizer
 import pdfplumber
 import torch
 
 app = FastAPI()
+
+# Mount static files (CSS, JS, etc.)
+# app.mount("/static", StaticFiles(directory="backend/static"), name="static")
+
+# Set up Jinja2 templates
+templates = Jinja2Templates(directory="frontend")
+
+# Serve index.html at "/"
+@app.get("/", response_class=HTMLResponse)
+async def read_index(request: Request):
+    return templates.TemplateResponse("index.html", {"request": request})
 
 app.add_middleware(
     CORSMiddleware,
