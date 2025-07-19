@@ -5,3 +5,4 @@ transformers
 torch
 aiofiles
 python-multipart
+sentencepiece
