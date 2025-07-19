@@ -1,18 +1,18 @@
 import os
 import shutil
 import json
+import asyncio
 import re
-from typing import List
+from typing import List, Dict
 
 import pdfplumber
-from fastapi import FastAPI, UploadFile, File, Query
+from fastapi import FastAPI, UploadFile, File, Query, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from transformers import MarianMTModel, MarianTokenizer
 
-# FastAPI 应用初始化
 app = FastAPI()
 
-# 允许跨域（建议上线时替换为具体前端域名）
+# CORS 设置（可更改为你的前端地址）
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -21,129 +21,179 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# 路径常量
-UPLOAD_DIR = "uploaded_files"
+UPLOAD_DIR = "uploaded_books"
 CACHE_DIR = "cache"
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 os.makedirs(CACHE_DIR, exist_ok=True)
 
-# 加载 MarianMT 模型（中文 → 英文）
+# 翻译模型（中译英）
 model_name = "Helsinki-NLP/opus-mt-zh-en"
 tokenizer = MarianTokenizer.from_pretrained(model_name)
 model = MarianMTModel.from_pretrained(model_name)
 
-# ✅ 智能提取段落（按中文句末标点断句）
-def extract_paragraphs_from_text(text: str) -> List[str]:
-    lines = [line.strip() for line in text.split("\n") if line.strip()]
-    blocks = []
+# ========================
+# ✅ 实用函数
+# ========================
+
+def extract_paragraphs(text: str) -> List[str]:
+    """智能段落提取：按中文标点拆分"""
+    lines = [line.strip() for line in text.split('\n') if line.strip()]
     buffer = []
     for line in lines:
-        if line == "":
-            if buffer:
-                blocks.append(" ".join(buffer))
-                buffer = []
-        else:
+        if not buffer or not re.search(r"[。！？!?]$", buffer[-1]):
             buffer.append(line)
-    if buffer:
-        blocks.append(" ".join(buffer))
-
-    final_paragraphs = []
-    for block in blocks:
-        sentences = re.split(r"(?<=[。！？!?])", block)
+        else:
+            buffer.append("§")  # 用特殊分隔符标识新段
+            buffer.append(line)
+    raw = " ".join(buffer)
+    parts = raw.split("§")
+    result = []
+    for part in parts:
+        sentences = re.split(r"(?<=[。！？!?])", part)
         para = ""
         for sentence in sentences:
             para += sentence.strip()
             if re.search(r"[。！？!?]$", sentence):
-                final_paragraphs.append(para.strip())
+                result.append(para.strip())
                 para = ""
         if para:
-            final_paragraphs.append(para.strip())
-    return final_paragraphs
+            result.append(para.strip())
+    return [p for p in result if p]
 
-# ✅ 从 PDF 提取每页段落
-def extract_pages_from_pdf(file_path: str) -> List[List[str]]:
+def extract_pages_from_pdf(path: str) -> List[List[str]]:
+    """提取 PDF 每页的段落"""
     pages = []
-    with pdfplumber.open(file_path) as pdf:
+    with pdfplumber.open(path) as pdf:
         for page in pdf.pages:
             text = page.extract_text()
             if text:
-                paragraphs = extract_paragraphs_from_text(text)
-                pages.append(paragraphs)
+                paras = extract_paragraphs(text)
+                pages.append(paras)
             else:
                 pages.append([])
     return pages
 
-# ✅ 高效批量翻译函数（支持 GPU/CPU 批处理）
-def batch_translate(texts: List[str], batch_size: int = 8) -> List[str]:
-    results = []
-    for i in range(0, len(texts), batch_size):
-        batch = texts[i:i+batch_size]
-        inputs = tokenizer(batch, return_tensors="pt", padding=True, truncation=True)
-        outputs = model.generate(**inputs)
-        translations = tokenizer.batch_decode(outputs, skip_special_tokens=True)
-        results.extend(translations)
-    return results
+async def translate_paragraph(paragraph: str) -> str:
+    inputs = tokenizer(paragraph, return_tensors="pt", truncation=True, padding=True)
+    outputs = model.generate(**inputs)
+    return tokenizer.batch_decode(outputs, skip_special_tokens=True)[0]
 
-# ✅ 生成缓存路径
-def get_cache_path(filename: str, page: int) -> str:
-    safe_name = filename.replace("/", "_").replace("\\", "_")
-    return os.path.join(CACHE_DIR, f"{safe_name}_page_{page}.json")
+async def translate_page(paragraphs: List[str]) -> List[str]:
+    tasks = [translate_paragraph(p) for p in paragraphs]
+    return await asyncio.gather(*tasks)
 
-# ✅ 读取缓存
-def load_cache(filename: str, page: int):
-    path = get_cache_path(filename, page)
+def get_pdf_path(book: str) -> str:
+    return os.path.join(UPLOAD_DIR, book)
+
+def get_cache_path(book: str, page: int) -> str:
+    return os.path.join(CACHE_DIR, f"{book}_page_{page}.json")
+
+def load_page_cache(book: str, page: int) -> Dict:
+    path = get_cache_path(book, page)
     if os.path.exists(path):
         with open(path, "r", encoding="utf-8") as f:
             return json.load(f)
-    return None
+    return {}
 
-# ✅ 写入缓存
-def save_cache(filename: str, page: int, data):
-    path = get_cache_path(filename, page)
-    with open(path, "w", encoding="utf-8") as f:
+def save_page_cache(book: str, page: int, data: Dict):
+    with open(get_cache_path(book, page), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
 
-# ✅ 上传 PDF 接口（保存文件 + 异步预翻译前3页）
+def get_status_path(book: str) -> str:
+    return os.path.join(CACHE_DIR, f"{book}_status.json")
+
+def update_translation_status(book: str, total_pages: int, done: int):
+    path = get_status_path(book)
+    with open(path, "w", encoding="utf-8") as f:
+        json.dump({"total": total_pages, "done": done}, f)
+
+# ========================
+# ✅ 接口
+# ========================
+
 @app.post("/upload/")
 async def upload_pdf(file: UploadFile = File(...)):
-    temp_path = os.path.join(UPLOAD_DIR, file.filename)
-    with open(temp_path, "wb") as f:
+    path = get_pdf_path(file.filename)
+    with open(path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    pages = extract_pages_from_pdf(temp_path)
+    pages = extract_pages_from_pdf(path)
     total_pages = len(pages)
 
-    # 预翻译前 3 页（同步执行，为了前端首屏体验）
-    for page_idx in range(min(3, total_pages)):
-        if load_cache(file.filename, page_idx) is None:
-            original = pages[page_idx]
-            translation = batch_translate(original)
-            save_cache(file.filename, page_idx, {
-                "original": original,
-                "translation": translation
+    # 缓存页码结构，供 get_page 使用
+    for i, para_list in enumerate(pages[:3]):  # 预翻译前3页
+        if not load_page_cache(file.filename, i):
+            translated = await translate_page(para_list)
+            save_page_cache(file.filename, i, {
+                "original": para_list,
+                "translation": translated
             })
 
+    update_translation_status(file.filename, total_pages, min(3, total_pages))
     return {"filename": file.filename, "total_pages": total_pages}
 
-# ✅ 获取某页翻译内容（使用缓存，否则重新翻译）
 @app.get("/get_page/")
 async def get_page(filename: str = Query(...), page: int = Query(...)):
-    path = os.path.join(UPLOAD_DIR, filename)
+    path = get_pdf_path(filename)
     if not os.path.exists(path):
-        return {"error": "文件未找到"}
+        return {"error": "文件不存在"}
 
-    # 优先读取缓存
-    cached = load_cache(filename, page)
-    if cached is not None:
+    cached = load_page_cache(filename, page)
+    if cached:
         return cached
 
-    # 无缓存则重新翻译
-    pages = extract_pages_from_pdf(path)
-    if page >= len(pages):
+    all_pages = extract_pages_from_pdf(path)
+    if page >= len(all_pages):
         return {"error": "页码超出范围"}
 
-    original = pages[page]
-    translation = batch_translate(original)
-    result = {"original": original, "translation": translation}
-    save_cache(filename, page, result)
-    return result
+    original = all_pages[page]
+    translation = await translate_page(original)
+    data = {"original": original, "translation": translation}
+    save_page_cache(filename, page, data)
+
+    status = load_translation_status(filename)
+    done_pages = status.get("done", 0)
+    update_translation_status(filename, len(all_pages), max(done_pages, page + 1))
+
+    return data
+
+@app.get("/list_books/")
+def list_books():
+    return [f for f in os.listdir(UPLOAD_DIR) if f.lower().endswith(".pdf")]
+
+@app.post("/translate_all/")
+async def translate_all(book: str):
+    path = get_pdf_path(book)
+    if not os.path.exists(path):
+        return {"error": "文件不存在"}
+
+    all_pages = extract_pages_from_pdf(path)
+    total_pages = len(all_pages)
+    done_pages = 0
+
+    for i, para_list in enumerate(all_pages):
+        if not load_page_cache(book, i):
+            translated = await translate_page(para_list)
+            save_page_cache(book, i, {
+                "original": para_list,
+                "translation": translated
+            })
+        done_pages += 1
+        update_translation_status(book, total_pages, done_pages)
+
+    return {"message": f"{book} 翻译完成", "pages": total_pages}
+
+@app.get("/translation_status/")
+def translation_status(book: str):
+    path = get_status_path(book)
+    if not os.path.exists(path):
+        return {"error": "尚未开始翻译"}
+    with open(path, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+def load_translation_status(book: str):
+    path = get_status_path(book)
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    return {"done": 0, "total": 0}

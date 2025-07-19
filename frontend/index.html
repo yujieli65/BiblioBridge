@@ -2,127 +2,112 @@
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <title>PDF 双语阅读器</title>
+  <title>📘 PDF 双语阅读器</title>
   <style>
     body {
       font-family: "Helvetica Neue", sans-serif;
-      background: #f7f9fc;
+      background: #f4f6f9;
       margin: 0;
       padding: 0;
     }
-
     header {
-      background-color: #1f2937;
+      background: #1f2937;
       color: white;
       padding: 1em;
       text-align: center;
       font-size: 1.4em;
     }
-
     main {
       max-width: 1200px;
       margin: auto;
       padding: 20px;
     }
-
-    .upload-box {
+    .controls {
       display: flex;
       gap: 10px;
-      margin-bottom: 10px;
       align-items: center;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
     }
-
+    select, input[type="file"] {
+      padding: 0.4em;
+      font-size: 1em;
+    }
     .progress-bar {
-      width: 100%;
-      background-color: #ddd;
       height: 10px;
+      background: #ddd;
       border-radius: 5px;
       overflow: hidden;
+      margin: 10px 0;
     }
-
     .progress {
       height: 100%;
-      background-color: #4caf50;
+      background: #4caf50;
       width: 0%;
       transition: width 0.3s ease;
     }
-
-    .status {
-      text-align: center;
-      margin: 10px 0;
-      color: #444;
-    }
-
-    .page-controls {
-      display: flex;
-      justify-content: center;
-      gap: 20px;
-      margin: 15px 0;
-      align-items: center;
-    }
-
-    .reader {
-      border: 1px solid #ccc;
-      border-radius: 8px;
-      overflow-y: auto;
-      height: 70vh;
-      background: #fff;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-    }
-
-    .row {
-      display: flex;
-      gap: 20px;
-      padding: 15px 20px;
-      border-bottom: 1px solid #eee;
-    }
-
-    .para {
-      flex: 1;
-      line-height: 1.6;
-      min-height: 2em;
-      user-select: text;
-    }
-
-    .para:hover {
-      background-color: #f0f8ff;
-    }
-
-    .highlight {
-      background-color: #ffe9a8;
-    }
-
     button {
-      padding: 0.5em 1em;
-      background-color: #2563eb;
+      padding: 0.6em 1em;
+      background: #2563eb;
       color: white;
       border: none;
       border-radius: 5px;
-      font-weight: 600;
       cursor: pointer;
-      transition: background-color 0.3s ease;
     }
-
     button:hover {
-      background-color: #1e40af;
+      background: #1d4ed8;
+    }
+    .reader {
+      height: 70vh;
+      overflow-y: auto;
+      background: white;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      padding: 10px;
+    }
+    .row {
+      display: flex;
+      gap: 20px;
+      padding: 10px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .para {
+      flex: 1;
+      line-height: 1.6;
+    }
+    .highlight {
+      background: #ffe9a8;
+    }
+    .page-controls {
+      margin: 15px 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 20px;
+    }
+    .status {
+      color: #555;
+      margin: 10px 0;
     }
   </style>
 </head>
 <body>
   <header>📘 PDF 双语阅读器</header>
   <main>
-    <div class="upload-box">
-      <input type="file" id="pdfFile" accept="application/pdf" />
-      <button onclick="uploadPDF()">上传 PDF</button>
+    <div class="controls">
+      <select id="bookList" onchange="selectBook(this.value)"></select>
+      <input type="file" id="pdfFile" />
+      <button onclick="uploadPDF()">上传新书</button>
+      <button onclick="translateAll()">整书翻译</button>
     </div>
 
     <div class="progress-bar">
-      <div id="bar" class="progress"></div>
+      <div class="progress" id="progressBar"></div>
     </div>
+    <div class="status" id="status">请选择一本书</div>
 
-    <div class="status" id="status">请上传 PDF 文件</div>
-
-    <div class="page-controls" id="page-controls" style="display: none;">
+    <div class="page-controls">
       <button onclick="prevPage()">上一页</button>
       <span>第 <span id="pageNum">1</span> 页 / 共 <span id="totalPages">0</span> 页</span>
       <button onclick="nextPage()">下一页</button>
@@ -132,85 +117,88 @@
   </main>
 
   <script>
-    let filename = "";
+    let currentBook = "";
     let currentPage = 0;
     let totalPages = 0;
 
-    function uploadPDF() {
+    async function fetchBooks() {
+      const res = await fetch("http://127.0.0.1:8000/list_books");
+      const books = await res.json();
+      const select = document.getElementById("bookList");
+      select.innerHTML = "<option value=''>选择书籍</option>" + books.map(book => `<option value="${book}">${book}</option>`).join("");
+    }
+
+    function selectBook(name) {
+      if (!name) return;
+      currentBook = name;
+      currentPage = 0;
+      document.getElementById("status").innerText = `正在加载《${name}》...`;
+      loadPage(0);
+      updateProgress();
+    }
+
+    async function uploadPDF() {
       const file = document.getElementById("pdfFile").files[0];
-      if (!file) return alert("请选择 PDF 文件");
+      if (!file) return alert("请选择一个 PDF 文件");
 
       const formData = new FormData();
       formData.append("file", file);
 
       document.getElementById("status").innerText = "上传中...";
-      document.getElementById("bar").style.width = "10%";
+      document.getElementById("progressBar").style.width = "20%";
 
-      fetch("http://127.0.0.1:8000/upload/", {
+      const res = await fetch("http://127.0.0.1:8000/upload/", {
         method: "POST",
         body: formData,
-      })
-      .then(res => res.json())
-      .then(data => {
-        filename = data.filename;
-        totalPages = data.total_pages;
-        currentPage = 0;
-        document.getElementById("page-controls").style.display = "flex";
-        document.getElementById("totalPages").innerText = totalPages;
-        document.getElementById("bar").style.width = "100%";
-        loadPage(currentPage);
-      })
-      .catch(() => {
-        document.getElementById("status").innerText = "上传失败，请重试";
-        document.getElementById("bar").style.width = "0%";
       });
+
+      const data = await res.json();
+      currentBook = data.filename;
+      totalPages = data.total_pages;
+      currentPage = 0;
+      document.getElementById("status").innerText = `上传成功：${data.filename}`;
+      await fetchBooks();
+      document.getElementById("bookList").value = data.filename;
+      loadPage(0);
     }
 
-    function loadPage(page) {
-      if (page < 0 || page >= totalPages) return;
+    async function loadPage(page) {
+      const res = await fetch(`http://127.0.0.1:8000/get_page/?filename=${currentBook}&page=${page}`);
+      const data = await res.json();
+      const reader = document.getElementById("reader");
+      reader.innerHTML = "";
 
-      document.getElementById("status").innerText = `加载第 ${page + 1} 页...`;
-      fetch(`http://127.0.0.1:8000/get_page/?filename=${filename}&page=${page}`)
-        .then(res => res.json())
-        .then(data => {
-          const reader = document.getElementById("reader");
-          reader.innerHTML = "";
-          const original = data.original || [];
-          const translation = data.translation || [];
+      const original = data.original || [];
+      const translation = data.translation || [];
 
-          for (let i = 0; i < Math.max(original.length, translation.length); i++) {
-            const row = document.createElement("div");
-            row.className = "row";
+      for (let i = 0; i < Math.max(original.length, translation.length); i++) {
+        const row = document.createElement("div");
+        row.className = "row";
 
-            const oDiv = document.createElement("div");
-            oDiv.className = "para original";
-            oDiv.textContent = original[i] || "";
-            oDiv.dataset.idx = i;
+        const o = document.createElement("div");
+        o.className = "para original";
+        o.dataset.idx = i;
+        o.innerText = original[i] || "";
 
-            const tDiv = document.createElement("div");
-            tDiv.className = "para translation";
-            tDiv.textContent = translation[i] || "";
-            tDiv.dataset.idx = i;
+        const t = document.createElement("div");
+        t.className = "para translation";
+        t.dataset.idx = i;
+        t.innerText = translation[i] || "";
 
-            // 点击高亮左右段落
-            oDiv.addEventListener("click", () => {
-              document.querySelectorAll(".highlight").forEach(e => e.classList.remove("highlight"));
-              oDiv.classList.add("highlight");
-              tDiv.classList.add("highlight");
-              tDiv.scrollIntoView({ behavior: "smooth", block: "center" });
-            });
+        o.onclick = () => {
+          document.querySelectorAll(".highlight").forEach(el => el.classList.remove("highlight"));
+          o.classList.add("highlight");
+          t.classList.add("highlight");
+          t.scrollIntoView({ behavior: "smooth", block: "center" });
+        };
 
-            row.appendChild(oDiv);
-            row.appendChild(tDiv);
-            reader.appendChild(row);
-          }
+        row.appendChild(o);
+        row.appendChild(t);
+        reader.appendChild(row);
+      }
 
-          document.getElementById("pageNum").innerText = page + 1;
-          document.getElementById("status").innerText = `第 ${page + 1} 页加载完成`;
-        })
-        .catch(() => {
-          document.getElementById("status").innerText = "加载失败，请重试";
-        });
+      document.getElementById("pageNum").innerText = page + 1;
+      document.getElementById("status").innerText = `《${currentBook}》第 ${page + 1} 页`;
     }
 
     function prevPage() {
@@ -226,6 +214,27 @@
         loadPage(currentPage);
       }
     }
+
+    async function translateAll() {
+      if (!currentBook) return;
+      document.getElementById("status").innerText = "开始整书翻译中...";
+      await fetch(`http://127.0.0.1:8000/translate_all/?book=${currentBook}`, { method: "POST" });
+      updateProgress();
+    }
+
+    async function updateProgress() {
+      if (!currentBook) return;
+      const res = await fetch(`http://127.0.0.1:8000/translation_status/?book=${currentBook}`);
+      const data = await res.json();
+      if (data.total > 0) {
+        const percent = Math.round((data.done / data.total) * 100);
+        document.getElementById("progressBar").style.width = percent + "%";
+        document.getElementById("totalPages").innerText = data.total;
+      }
+    }
+
+    setInterval(updateProgress, 3000);
+    fetchBooks();
   </script>
 </body>
 </html>
