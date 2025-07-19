@@ -7,3 +7,4 @@ aiofiles
 python-multipart
 sentencepiece
 Jinja2
+sacremoses
