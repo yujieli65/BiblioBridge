@@ -137,6 +137,8 @@
     </div>
 
     <div class="reader" id="reader"></div>
+
+    <div id="drop-area"> <input type="file" id="pdfFile" ...></div>
   </main>
 
   <script>
@@ -156,7 +158,7 @@
       document.getElementById("uploadStatus").innerText = "Uploading...";
       document.getElementById("uploadBar").style.width = "10%";
 
-      fetch("http://127.0.0.1:8000/upload/", {
+      fetch("/upload/", {
         method: "POST",
         body: formData,
       })
@@ -179,7 +181,7 @@
     function startTranslate() {
       if (!filename) return alert("Please upload a PDF file first");
 
-      fetch(`http://127.0.0.1:8000/translate_all/?filename=${filename}`, { method: "POST" })
+      fetch(`/translate_all/?filename=${filename}`, { method: "POST" })
         .then(() => {
           document.getElementById("translateStatus").innerText = "Translating full book...";
           translationInterval = setInterval(checkTranslateProgress, 1000);
@@ -187,7 +189,7 @@
     }
 
     function checkTranslateProgress() {
-      fetch(`http://127.0.0.1:8000/translation_status/?filename=${filename}`)
+      fetch(`/translation_status/?filename=${filename}`)
         .then(res => res.json())
         .then(data => {
           if (data.error) return;
@@ -209,7 +211,7 @@
       document.getElementById("pageNum").innerText = page + 1;
       document.getElementById("reader").innerHTML = "Loading...";
 
-      fetch(`http://127.0.0.1:8000/get_page/?filename=${filename}&page=${page}`)
+      fetch(`/get_page/?filename=${filename}&page=${page}`)
         .then(res => res.json())
         .then(data => {
           const reader = document.getElementById("reader");
