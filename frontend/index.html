@@ -1,8 +1,9 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
+
 <head>
   <meta charset="UTF-8" />
-  <title>📘 PDF 双语阅读器</title>
+  <title>BiblioBridge</title>
   <style>
     body {
       font-family: "Helvetica Neue", sans-serif;
@@ -10,6 +11,7 @@
       margin: 0;
       padding: 0;
     }
+
     header {
       background-color: #1f2937;
       color: white;
@@ -17,42 +19,52 @@
       text-align: center;
       font-size: 1.5em;
     }
+
     main {
       max-width: 1200px;
       margin: auto;
       padding: 20px;
     }
-    .upload-controls, .progress-bar, .page-controls {
+
+    .upload-controls,
+    .progress-bar,
+    .page-controls {
       margin: 15px 0;
     }
+
     .upload-controls {
       display: flex;
       gap: 10px;
       align-items: center;
     }
+
     .progress-bar {
       height: 10px;
       background: #e5e7eb;
       border-radius: 6px;
       overflow: hidden;
     }
+
     .progress {
       height: 100%;
       background: #3b82f6;
       width: 0%;
       transition: width 0.3s ease;
     }
+
     .status {
       margin-top: 5px;
       font-size: 0.95em;
       color: #555;
     }
+
     .page-controls {
       display: flex;
       justify-content: center;
       gap: 20px;
       align-items: center;
     }
+
     .reader {
       height: 70vh;
       overflow-y: scroll;
@@ -61,23 +73,28 @@
       background: white;
       padding: 10px;
     }
+
     .row {
       display: flex;
       gap: 20px;
       border-bottom: 1px solid #eee;
       padding: 10px 0;
     }
+
     .para {
       flex: 1;
       line-height: 1.6;
       min-height: 2em;
     }
+
     .para:hover {
       background: #f0f9ff;
     }
+
     .highlight {
       background-color: #ffe9a8;
     }
+
     button {
       padding: 0.5em 1em;
       background: #2563eb;
@@ -87,30 +104,36 @@
       font-weight: 600;
       cursor: pointer;
     }
+
     button:hover {
       background-color: #1d4ed8;
     }
   </style>
 </head>
+
 <body>
-  <header>📘 PDF 双语阅读器</header>
+  <header>📘 BiblioBridge</header>
   <main>
     <div class="upload-controls">
       <input type="file" id="pdfFile" accept="application/pdf" />
-      <button onclick="uploadPDF()">上传 PDF</button>
-      <button onclick="startTranslate()">整书翻译</button>
+      <button onclick="uploadPDF()">Upload PDF</button>
+      <button onclick="startTranslate()">Translate Full Book</button>
     </div>
 
-    <div class="progress-bar"><div id="uploadBar" class="progress"></div></div>
-    <div class="status" id="uploadStatus">请上传 PDF 文件</div>
+    <div class="progress-bar">
+      <div id="uploadBar" class="progress"></div>
+    </div>
+    <div class="status" id="uploadStatus">Please upload a PDF file</div>
 
-    <div class="progress-bar"><div id="translateBar" class="progress"></div></div>
-    <div class="status" id="translateStatus">翻译未开始</div>
+    <div class="progress-bar">
+      <div id="translateBar" class="progress"></div>
+    </div>
+    <div class="status" id="translateStatus">Translation not started</div>
 
     <div class="page-controls" style="display:none;" id="pageControls">
-      <button onclick="prevPage()">上一页</button>
-      <span>第 <span id="pageNum">1</span> 页 / 共 <span id="totalPages">0</span> 页</span>
-      <button onclick="nextPage()">下一页</button>
+      <button onclick="prevPage()">Previous Page</button>
+      <span>Page <span id="pageNum">1</span> of <span id="totalPages">0</span></span>
+      <button onclick="nextPage()">Next Page</button>
     </div>
 
     <div class="reader" id="reader"></div>
@@ -125,40 +148,40 @@
     function uploadPDF() {
       const fileInput = document.getElementById("pdfFile");
       const file = fileInput.files[0];
-      if (!file) return alert("请选择一个PDF文件");
+      if (!file) return alert("Please select a PDF file");
 
       const formData = new FormData();
       formData.append("file", file);
 
-      document.getElementById("uploadStatus").innerText = "上传中...";
+      document.getElementById("uploadStatus").innerText = "Uploading...";
       document.getElementById("uploadBar").style.width = "10%";
 
       fetch("http://127.0.0.1:8000/upload/", {
         method: "POST",
         body: formData,
       })
-      .then(res => res.json())
-      .then(data => {
-        filename = data.filename;
-        totalPages = data.total_pages;
-        currentPage = 0;
-        document.getElementById("uploadBar").style.width = "100%";
-        document.getElementById("uploadStatus").innerText = "上传完成 ✅";
-        document.getElementById("totalPages").innerText = totalPages;
-        document.getElementById("pageControls").style.display = "flex";
-        loadPage(currentPage);
-      })
-      .catch(() => {
-        document.getElementById("uploadStatus").innerText = "上传失败";
-      });
+        .then(res => res.json())
+        .then(data => {
+          filename = data.filename;
+          totalPages = data.total_pages;
+          currentPage = 0;
+          document.getElementById("uploadBar").style.width = "100%";
+          document.getElementById("uploadStatus").innerText = "Upload complete ✅";
+          document.getElementById("totalPages").innerText = totalPages;
+          document.getElementById("pageControls").style.display = "flex";
+          loadPage(currentPage);
+        })
+        .catch(() => {
+          document.getElementById("uploadStatus").innerText = "Upload failed";
+        });
     }
 
     function startTranslate() {
-      if (!filename) return alert("请先上传 PDF 文件");
+      if (!filename) return alert("Please upload a PDF file first");
 
       fetch(`http://127.0.0.1:8000/translate_all/?filename=${filename}`, { method: "POST" })
         .then(() => {
-          document.getElementById("translateStatus").innerText = "正在整书翻译中...";
+          document.getElementById("translateStatus").innerText = "Translating full book...";
           translationInterval = setInterval(checkTranslateProgress, 1000);
         });
     }
@@ -171,11 +194,11 @@
 
           const percent = Math.round((data.done / data.total) * 100);
           document.getElementById("translateBar").style.width = percent + "%";
-          document.getElementById("translateStatus").innerText = `翻译进度：${data.done}/${data.total}`;
+          document.getElementById("translateStatus").innerText = `Progress: ${data.done}/${data.total}`;
 
           if (data.done >= data.total && translationInterval) {
             clearInterval(translationInterval);
-            document.getElementById("translateStatus").innerText = "整书翻译完成 ✅";
+            document.getElementById("translateStatus").innerText = "Translation complete ✅";
           }
         });
     }
@@ -184,7 +207,7 @@
       if (page < 0 || page >= totalPages) return;
 
       document.getElementById("pageNum").innerText = page + 1;
-      document.getElementById("reader").innerHTML = "加载中...";
+      document.getElementById("reader").innerHTML = "Loading...";
 
       fetch(`http://127.0.0.1:8000/get_page/?filename=${filename}&page=${page}`)
         .then(res => res.json())
@@ -236,4 +259,5 @@
     }
   </script>
 </body>
+
 </html>
