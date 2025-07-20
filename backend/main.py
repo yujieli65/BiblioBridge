@@ -114,12 +114,16 @@ def load_cache(filename: str, page: int):
 
 @app.post("/upload/")
 async def upload_pdf(file: UploadFile = File(...)):
-    path = os.path.join(UPLOAD_DIR, file.filename)
-    with open(path, "wb") as f:
-        shutil.copyfileobj(file.file, f)
-    pages = extract_pages_from_pdf(path)
-    STATUS[file.filename] = {"total": len(pages), "done": 0, "started": False}
-    return {"filename": file.filename, "total_pages": len(pages)}
+    try:
+        path = os.path.join(UPLOAD_DIR, file.filename)
+        with open(path, "wb") as f:
+            shutil.copyfileobj(file.file, f)
+        pages = extract_pages_from_pdf(path)
+        STATUS[file.filename] = {"total": len(pages), "done": 0, "started": False}
+        return {"filename": file.filename, "total_pages": len(pages)}
+    except Exception as e:
+        print(f"Upload failed: {e}")
+        return {"error": str(e)}
 
 
 @app.post("/translate_all/")
