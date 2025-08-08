@@ -20,8 +20,8 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))  # 项目
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "frontend"))
 #templates = Jinja2Templates(directory="frontend")
 
-UPLOAD_DIR = "uploaded_files"
-CACHE_DIR = "cache"
+UPLOAD_DIR = "tmp/uploaded_files"
+CACHE_DIR = "tmp/cache"
 STATUS: Dict[str, Dict] = {}
 
 os.makedirs(UPLOAD_DIR, exist_ok=True)
