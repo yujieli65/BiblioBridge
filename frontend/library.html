@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>📚 My Library</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Inter:wght@400;600&display=swap');
+
+    body {
+      font-family: 'Inter', Arial, sans-serif;
+      max-width: 800px;
+      margin: 50px auto;
+      padding: 20px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #ede9fe;
+      border-radius: 24px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.35);
+      user-select: none;
+    }
+
+    h1 {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: 2.4rem;
+      text-align: center;
+      margin-bottom: 1.5rem;
+      text-shadow: 0 0 10px #a78bfa;
+      user-select: none;
+    }
+
+    ul {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    li {
+      background: rgba(255 255 255 / 0.15);
+      margin: 14px 0;
+      padding: 18px 26px;
+      border-radius: 20px;
+      box-shadow: 0 6px 18px rgba(167 139 250 / 0.4);
+      cursor: pointer;
+      transition: background-color 0.3s ease, transform 0.2s ease;
+      display: flex;
+      flex-direction: column;
+      user-select: text;
+    }
+    li:hover {
+      background: rgba(255 255 255 / 0.25);
+      transform: translateY(-4px);
+      box-shadow: 0 12px 28px rgba(167 139 250 / 0.6);
+    }
+
+    .book-title {
+      font-weight: 700;
+      font-size: 1.4rem;
+      color: #ede9fe;
+      user-select: text;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .book-info {
+      font-size: 1rem;
+      color: #d1d5db;
+      margin-top: 6px;
+      user-select: text;
+    }
+
+    .no-books {
+      text-align: center;
+      color: #c4b5fd;
+      margin-top: 80px;
+      font-style: italic;
+      font-size: 1.1rem;
+      user-select: none;
+    }
+
+    .back-btn {
+      display: inline-block;
+      margin-bottom: 25px;
+      padding: 12px 28px;
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+      color: white;
+      border-radius: 28px;
+      text-decoration: none;
+      font-weight: 700;
+      font-family: 'Montserrat', sans-serif;
+      box-shadow: 0 8px 20px rgba(123, 63, 230, 0.7);
+      transition: background 0.3s ease, transform 0.2s ease;
+      user-select: none;
+    }
+    .back-btn:hover {
+      background: linear-gradient(135deg, #7c3aed, #5b21b6);
+      transform: translateY(-3px);
+      box-shadow: 0 14px 30px rgba(123, 63, 230, 0.95);
+    }
+
+    /* Responsive */
+    @media (max-width: 480px) {
+      body {
+        max-width: 95vw;
+        margin: 30px auto;
+        border-radius: 16px;
+      }
+      .book-title {
+        font-size: 1.1rem;
+      }
+      .book-info {
+        font-size: 0.9rem;
+      }
+      .back-btn {
+        width: 100%;
+        text-align: center;
+        padding: 14px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <a href="/" class="back-btn" aria-label="Back to home page">🏠 Back to Home</a>
+  <h1>📚 My Library</h1>
+  <ul id="bookList">
+    <li class="no-books">Loading your stored books...</li>
+  </ul>
+
+  <script>
+    async function loadLibrary() {
+      try {
+        const res = await fetch("/library/");
+        const data = await res.json();
+        const bookList = document.getElementById("bookList");
+        bookList.innerHTML = "";
+        if (!data.books || data.books.length === 0) {
+          bookList.innerHTML = '<li class="no-books">No stored books found</li>';
+          return;
+        }
+        data.books.forEach(book => {
+          const li = document.createElement("li");
+          li.innerHTML = `
+            <div class="book-title" title="${book.filename}">${book.filename}</div>
+            <div class="book-info">Cached Pages: ${book.pages_cached || 0}</div>
+          `;
+          li.onclick = () => {
+            window.location.href = `/reader?filename=${encodeURIComponent(book.filename)}`;
+          };
+          bookList.appendChild(li);
+        });
+      } catch (e) {
+        const bookList = document.getElementById("bookList");
+        bookList.innerHTML = '<li class="no-books">Failed to load books, please refresh</li>';
+        console.error(e);
+      }
+    }
+
+    window.onload = loadLibrary;
+  </script>
+</body>
+</html>

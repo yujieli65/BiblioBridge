@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>📘 Book Reader</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Inter:wght@400;600&display=swap');
+
+    body {
+      font-family: 'Inter', Arial, sans-serif;
+      max-width: 900px;
+      margin: 50px auto;
+      padding: 24px 20px;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #ede9fe;
+      border-radius: 24px;
+      box-shadow: 0 16px 40px rgba(0,0,0,0.35);
+      user-select: none;
+    }
+
+    header {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: 2.4rem;
+      text-align: center;
+      margin-bottom: 30px;
+      text-shadow: 0 0 15px #a78bfa;
+      user-select: none;
+    }
+
+    .page-controls {
+      display: flex;
+      justify-content: center;
+      gap: 24px;
+      margin-bottom: 24px;
+      user-select: none;
+    }
+
+    button {
+      padding: 12px 26px;
+      border-radius: 30px;
+      border: none;
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+      color: white;
+      font-weight: 700;
+      font-family: 'Montserrat', sans-serif;
+      cursor: pointer;
+      box-shadow: 0 8px 24px rgba(123, 63, 230, 0.8);
+      transition: background 0.3s ease, transform 0.2s ease;
+      user-select: none;
+    }
+    button:hover:not(:disabled) {
+      background: linear-gradient(135deg, #7c3aed, #5b21b6);
+      transform: translateY(-3px);
+      box-shadow: 0 14px 36px rgba(123, 63, 230, 1);
+    }
+    button:disabled {
+      background: #a78bfa99;
+      cursor: default;
+      box-shadow: none;
+      transform: none;
+    }
+
+    span {
+      font-weight: 600;
+      font-size: 1.1rem;
+      align-self: center;
+      user-select: text;
+    }
+
+    .reader {
+      background: rgba(255 255 255 / 0.15);
+      border-radius: 20px;
+      padding: 20px 24px;
+      height: 70vh;
+      overflow-y: auto;
+      box-shadow: 0 8px 28px rgba(167 139 250 / 0.4);
+      color: #ede9fe;
+      user-select: text;
+    }
+
+    .row {
+      display: flex;
+      gap: 24px;
+      border-bottom: 1px solid rgba(255 255 255 / 0.25);
+      padding: 14px 0;
+    }
+
+    .para {
+      flex: 1;
+      line-height: 1.7;
+      font-size: 1rem;
+      transition: background-color 0.3s ease;
+      cursor: text;
+      user-select: text;
+    }
+    .para.original {
+      font-style: italic;
+      opacity: 0.9;
+    }
+    .para.translation {
+      font-weight: 600;
+      color: #dcd6f7;
+    }
+
+    .highlight {
+      background-color: #ffe9a8;
+      color: #333;
+      border-radius: 8px;
+      padding: 2px 6px;
+    }
+
+    /* 响应式 */
+    @media (max-width: 600px) {
+      body {
+        max-width: 95vw;
+        border-radius: 16px;
+        padding: 20px 16px;
+      }
+      .row {
+        flex-direction: column;
+        gap: 12px;
+      }
+      .page-controls {
+        flex-direction: column;
+        gap: 16px;
+      }
+      button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>📘 Book Reader</header>
+  <div class="page-controls">
+    <button id="prevBtn" aria-label="Previous Page">← Prev</button>
+    <span>Page <span id="pageNum">1</span> / <span id="totalPages">0</span></span>
+    <button id="nextBtn" aria-label="Next Page">Next →</button>
+  </div>
+  <div class="reader" id="reader">Loading...</div>
+
+  <script>
+    const urlParams = new URLSearchParams(window.location.search);
+    const filename = urlParams.get("filename");
+    if (!filename) {
+      alert("Missing filename parameter!");
+      throw new Error("Missing filename parameter");
+    }
+
+    let currentPage = 0;
+    let totalPages = 0;
+    const srcLang = "zh";  // 可以改为动态选择
+    const tgtLang = "en";
+
+    const prevBtn = document.getElementById("prevBtn");
+    const nextBtn = document.getElementById("nextBtn");
+    const pageNumSpan = document.getElementById("pageNum");
+    const totalPagesSpan = document.getElementById("totalPages");
+    const reader = document.getElementById("reader");
+
+    async function loadPage(page) {
+      if (page < 0 || (totalPages && page >= totalPages)) return;
+      currentPage = page;
+      pageNumSpan.textContent = currentPage + 1;
+
+      reader.textContent = "Loading...";
+
+      try {
+        const res = await fetch(`/get_page/?filename=${encodeURIComponent(filename)}&page=${page}&src_lang=${srcLang}&tgt_lang=${tgtLang}`);
+        const data = await res.json();
+        if (data.error) {
+          reader.textContent = `Error: ${data.error}`;
+          return;
+        }
+
+        if (data.total_pages) totalPages = data.total_pages;
+        totalPagesSpan.textContent = totalPages;
+
+        reader.innerHTML = "";
+        const original = data.original || [];
+        const translation = data.translation || [];
+
+        for (let i = 0; i < Math.max(original.length, translation.length); i++) {
+          const row = document.createElement("div");
+          row.className = "row";
+
+          const oPara = document.createElement("div");
+          oPara.className = "para original";
+          oPara.textContent = original[i] || "";
+
+          const tPara = document.createElement("div");
+          tPara.className = "para translation";
+          tPara.textContent = translation[i] || "";
+
+          oPara.onclick = () => {
+            document.querySelectorAll(".highlight").forEach(el => el.classList.remove("highlight"));
+            oPara.classList.add("highlight");
+            tPara.classList.add("highlight");
+            tPara.scrollIntoView({ behavior: "smooth", block: "center" });
+          };
+
+          row.appendChild(oPara);
+          row.appendChild(tPara);
+          reader.appendChild(row);
+        }
+
+        // 按钮状态
+        prevBtn.disabled = currentPage <= 0;
+        nextBtn.disabled = currentPage >= totalPages - 1;
+
+      } catch (e) {
+        reader.textContent = "Failed to load, please try again later.";
+        console.error(e);
+      }
+    }
+
+    prevBtn.onclick = () => {
+      if (currentPage > 0) loadPage(currentPage - 1);
+    };
+
+    nextBtn.onclick = () => {
+      if (currentPage < totalPages - 1) loadPage(currentPage + 1);
+    };
+
+    // 初始化
+    loadPage(0);
+  </script>
+</body>
+</html>

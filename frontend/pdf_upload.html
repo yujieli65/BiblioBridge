@@ -1,0 +1,448 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>📘 PDF Bilingual Reader</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Inter:wght@400;600&display=swap');
+
+    /* Reset & base */
+    * {
+      box-sizing: border-box;
+    }
+    body {
+      font-family: 'Inter', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      margin: 0;
+      padding: 0;
+      color: #e0d7ff;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: #1f2937;
+      padding: 1.2rem 0;
+      text-align: center;
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: 1.8rem;
+      color: #ede9fe;
+      text-shadow: 0 0 6px #a78bfa;
+      user-select: none;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+      letter-spacing: 2px;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 2.5rem auto 3rem;
+      padding: 1.5rem 2rem;
+      background: rgba(255 255 255 / 0.1);
+      border-radius: 24px;
+      box-shadow: 0 10px 30px rgba(0 0 0 / 0.25);
+      flex-grow: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 1.5rem;
+      color: #ede9fe;
+    }
+
+    .upload-controls {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      align-items: center;
+      user-select: none;
+    }
+
+    label {
+      font-size: 1rem;
+      color: #d1c4e9;
+      display: flex;
+      flex-direction: column;
+      font-weight: 600;
+      min-width: 130px;
+    }
+
+    select {
+      margin-top: 6px;
+      padding: 0.35rem 0.6rem;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: none;
+      background: #5b21b6;
+      color: #ede9fe;
+      box-shadow: inset 0 0 8px #a78bfaaa;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+      user-select: text;
+    }
+    select:hover, select:focus {
+      background: #7c3aed;
+      outline: none;
+    }
+
+    input[type="file"] {
+      flex-grow: 1;
+      padding: 0.3rem 0.6rem;
+      border-radius: 8px;
+      border: none;
+      background: #5b21b6;
+      color: #ede9fe;
+      cursor: pointer;
+      box-shadow: inset 0 0 8px #a78bfaaa;
+      transition: background-color 0.3s ease;
+    }
+    input[type="file"]:hover {
+      background: #7c3aed;
+    }
+
+    button {
+      padding: 0.55rem 1.4rem;
+      border-radius: 16px;
+      border: none;
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+      color: white;
+      font-weight: 700;
+      font-size: 1.1rem;
+      cursor: pointer;
+      box-shadow: 0 8px 20px rgba(123, 63, 230, 0.6);
+      user-select: none;
+      transition: background 0.3s ease, transform 0.2s ease;
+      flex-shrink: 0;
+      min-width: 140px;
+    }
+    button:hover {
+      background: linear-gradient(135deg, #7c3aed, #5b21b6);
+      transform: translateY(-3px);
+      box-shadow: 0 14px 30px rgba(123, 63, 230, 0.9);
+    }
+
+    .progress-bar {
+      height: 12px;
+      background: rgba(255 255 255 / 0.15);
+      border-radius: 20px;
+      overflow: hidden;
+      box-shadow: inset 0 0 8px rgba(255 255 255 / 0.2);
+      margin-top: 0.7rem;
+      margin-bottom: 0.3rem;
+    }
+    .progress {
+      height: 100%;
+      background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+      width: 0%;
+      transition: width 0.35s ease;
+      box-shadow: 0 0 12px #a78bfaaa;
+      border-radius: 20px;
+    }
+
+    .status {
+      font-size: 0.9rem;
+      color: #c4b5fdcc;
+      font-weight: 600;
+      margin-bottom: 1rem;
+      user-select: none;
+      min-height: 22px;
+    }
+
+    .page-controls {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 24px;
+      user-select: none;
+    }
+
+    .page-controls button {
+      padding: 0.5rem 1.2rem;
+      min-width: 120px;
+      font-weight: 700;
+      font-size: 1rem;
+      border-radius: 14px;
+      background: linear-gradient(135deg, #a78bfa, #8b5cf6);
+      box-shadow: 0 5px 12px rgba(167, 139, 250, 0.8);
+      transition: background 0.3s ease, transform 0.15s ease;
+    }
+    .page-controls button:hover {
+      background: linear-gradient(135deg, #8b5cf6, #7c3aed);
+      transform: translateY(-3px);
+      box-shadow: 0 10px 22px rgba(123, 63, 230, 0.9);
+    }
+
+    .reader {
+      flex-grow: 1;
+      overflow-y: auto;
+      background: rgba(255 255 255 / 0.15);
+      border-radius: 20px;
+      box-shadow: inset 0 0 20px rgba(255 255 255 / 0.2);
+      padding: 16px 22px;
+      color: #ede9fe;
+      font-size: 1.1rem;
+      line-height: 1.7;
+      user-select: text;
+    }
+
+    .row {
+      display: flex;
+      gap: 24px;
+      border-bottom: 1px solid rgba(255 255 255 / 0.12);
+      padding: 12px 0;
+    }
+
+    .para {
+      flex: 1;
+      min-height: 2.2em;
+      cursor: pointer;
+      border-radius: 12px;
+      padding: 6px 12px;
+      transition: background-color 0.25s ease;
+      user-select: text;
+    }
+    .para.original {
+      background: rgba(255 255 255 / 0.1);
+    }
+    .para.translation {
+      background: rgba(255 255 255 / 0.05);
+      font-style: italic;
+      color: #d6c9ffcc;
+    }
+    .para:hover {
+      background: #a78bfa44;
+    }
+    .highlight {
+      background-color: #facc15cc !important;
+      color: #1e1e1e !important;
+      font-weight: 700;
+    }
+
+    /* Scrollbar styling */
+    .reader::-webkit-scrollbar {
+      width: 10px;
+    }
+    .reader::-webkit-scrollbar-track {
+      background: rgba(255 255 255 / 0.1);
+      border-radius: 20px;
+    }
+    .reader::-webkit-scrollbar-thumb {
+      background: #a78bfaaa;
+      border-radius: 20px;
+      border: 2px solid rgba(255 255 255 / 0.15);
+    }
+
+    @media (max-width: 768px) {
+      main {
+        max-width: 95vw;
+        padding: 1rem 1rem 2rem;
+      }
+      .upload-controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      label, input[type="file"], button, select {
+        min-width: 100% !important;
+        margin: 0 !important;
+      }
+      .page-controls {
+        flex-wrap: wrap;
+        gap: 16px;
+      }
+      .row {
+        flex-direction: column;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <header>📘 PDF Bilingual Reader</header>
+
+  <main>
+    <div class="upload-controls" role="form" aria-label="Upload and translate PDF controls">
+      <label for="srcLang">
+        Source Language:
+        <select id="srcLang" aria-required="true" aria-describedby="srcLangHelp">
+          <option value="zh" selected>Chinese (zh)</option>
+          <option value="en">English (en)</option>
+          <option value="fr">French (fr)</option>
+        </select>
+      </label>
+
+      <label for="tgtLang">
+        Target Language:
+        <select id="tgtLang" aria-required="true" aria-describedby="tgtLangHelp">
+          <option value="en" selected>English (en)</option>
+          <option value="zh">Chinese (zh)</option>
+          <option value="fr">French (fr)</option>
+        </select>
+      </label>
+
+      <input type="file" id="pdfFile" accept="application/pdf" aria-label="Select PDF file to upload" />
+      <button type="button" onclick="uploadPDF()" aria-live="polite" aria-atomic="true">Upload PDF</button>
+      <button type="button" onclick="startTranslate()" aria-live="polite" aria-atomic="true">Translate Whole Book</button>
+    </div>
+
+    <div>
+      <div class="progress-bar" aria-hidden="true">
+        <div id="uploadBar" class="progress" style="width: 0%;"></div>
+      </div>
+      <div id="uploadStatus" class="status" aria-live="polite" aria-atomic="true">Please upload a PDF file</div>
+    </div>
+
+    <div>
+      <div class="progress-bar" aria-hidden="true">
+        <div id="translateBar" class="progress" style="width: 0%;"></div>
+      </div>
+      <div id="translateStatus" class="status" aria-live="polite" aria-atomic="true">Translation not started</div>
+    </div>
+
+    <div class="page-controls" id="pageControls" style="display:none;" role="navigation" aria-label="Page navigation controls">
+      <button type="button" onclick="prevPage()" aria-label="Previous page">Previous Page</button>
+      <span>Page <span id="pageNum">1</span> / <span id="totalPages">0</span></span>
+      <button type="button" onclick="nextPage()" aria-label="Next page">Next Page</button>
+    </div>
+
+    <section class="reader" id="reader" aria-live="polite" aria-atomic="true" tabindex="0" aria-label="Bilingual PDF content"></section>
+  </main>
+
+  <script>
+    let filename = "";
+    let currentPage = 0;
+    let totalPages = 0;
+    let translationInterval = null;
+
+    function getSelectedLanguages() {
+      return {
+        srcLang: document.getElementById("srcLang").value,
+        tgtLang: document.getElementById("tgtLang").value
+      };
+    }
+
+    function uploadPDF() {
+      const fileInput = document.getElementById("pdfFile");
+      const file = fileInput.files[0];
+      if (!file) return alert("Please select a PDF file");
+
+      const { srcLang, tgtLang } = getSelectedLanguages();
+
+      const formData = new FormData();
+      formData.append("file", file);
+
+      document.getElementById("uploadStatus").innerText = "Uploading...";
+      document.getElementById("uploadBar").style.width = "10%";
+
+      fetch("/upload/", {
+        method: "POST",
+        body: formData,
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.error) {
+          alert("Upload failed: " + data.error);
+          document.getElementById("uploadStatus").innerText = "Upload failed";
+          return;
+        }
+        filename = data.filename;
+        totalPages = data.total_pages;
+        currentPage = 0;
+        document.getElementById("uploadBar").style.width = "100%";
+        document.getElementById("uploadStatus").innerText = "Upload completed ✅";
+        document.getElementById("totalPages").innerText = totalPages;
+        document.getElementById("pageControls").style.display = "flex";
+        loadPage(currentPage, srcLang, tgtLang);
+      })
+      .catch(() => {
+        document.getElementById("uploadStatus").innerText = "Upload failed";
+      });
+    }
+
+    function startTranslate() {
+      if (!filename) return alert("Please upload a PDF file first");
+
+      const { srcLang, tgtLang } = getSelectedLanguages();
+
+      fetch(`/translate_all/?filename=${encodeURIComponent(filename)}&src_lang=${srcLang}&tgt_lang=${tgtLang}`, {
+        method: "POST"
+      })
+      .then(() => {
+        document.getElementById("translateStatus").innerText = "Translating the whole book...";
+        translationInterval = setInterval(() => checkTranslateProgress(srcLang, tgtLang), 1200);
+      });
+    }
+
+    function checkTranslateProgress(srcLang, tgtLang) {
+      fetch(`/translation_status/?filename=${encodeURIComponent(filename)}`)
+        .then(res => res.json())
+        .then(data => {
+          if (data.error) return;
+
+          const percent = Math.round((data.done / data.total) * 100);
+          document.getElementById("translateBar").style.width = percent + "%";
+          document.getElementById("translateStatus").innerText = `Progress: ${data.done}/${data.total}`;
+
+          if (data.done >= data.total && translationInterval) {
+            clearInterval(translationInterval);
+            document.getElementById("translateStatus").innerText = "Translation complete ✅";
+          }
+        });
+    }
+
+    function loadPage(page, srcLang, tgtLang) {
+      if (page < 0 || page >= totalPages) return;
+
+      document.getElementById("pageNum").innerText = page + 1;
+      const reader = document.getElementById("reader");
+      reader.innerHTML = "<em>Loading...</em>";
+
+      fetch(`/get_page/?filename=${encodeURIComponent(filename)}&page=${page}&src_lang=${srcLang}&tgt_lang=${tgtLang}`)
+        .then(res => res.json())
+        .then(data => {
+          const original = data.original || [];
+          const translation = data.translation || [];
+
+          reader.innerHTML = "";
+          for (let i = 0; i < Math.max(original.length, translation.length); i++) {
+            const row = document.createElement("div");
+            row.className = "row";
+
+            const oPara = document.createElement("div");
+            oPara.className = "para original";
+            oPara.textContent = original[i] || "";
+
+            const tPara = document.createElement("div");
+            tPara.className = "para translation";
+            tPara.textContent = translation[i] || "";
+
+            oPara.onclick = () => {
+              document.querySelectorAll(".highlight").forEach(el => el.classList.remove("highlight"));
+              oPara.classList.add("highlight");
+              tPara.classList.add("highlight");
+              tPara.scrollIntoView({ behavior: "smooth", block: "center" });
+            };
+
+            row.appendChild(oPara);
+            row.appendChild(tPara);
+            reader.appendChild(row);
+          }
+        });
+    }
+
+    function prevPage() {
+      if (currentPage > 0) {
+        currentPage--;
+        const { srcLang, tgtLang } = getSelectedLanguages();
+        loadPage(currentPage, srcLang, tgtLang);
+      }
+    }
+
+    function nextPage() {
+      if (currentPage < totalPages - 1) {
+        currentPage++;
+        const { srcLang, tgtLang } = getSelectedLanguages();
+        loadPage(currentPage, srcLang, tgtLang);
+      }
+    }
+  </script>
+</body>
+</html>

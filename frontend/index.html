@@ -1,239 +1,236 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>📘 PDF 双语阅读器</title>
+  <title>Bilingual Translator Entry</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700&family=Inter:wght@400;600&display=swap');
+
     body {
-      font-family: "Helvetica Neue", sans-serif;
-      background: #f9fafb;
+      font-family: 'Inter', Arial, sans-serif;
+      background: linear-gradient(135deg, #667eea, #764ba2);
       margin: 0;
-      padding: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      align-items: center;
+      color: #f0f4f8;
+      padding: 40px 20px 60px;
+      box-sizing: border-box;
     }
-    header {
-      background-color: #1f2937;
-      color: white;
-      padding: 1em;
+
+    .intro {
+      max-width: 720px;
+      background: rgba(255, 255, 255, 0.15);
+      backdrop-filter: blur(15px);
+      border-radius: 24px;
+      padding: 30px 40px;
+      box-shadow: 0 12px 24px rgba(0,0,0,0.25);
       text-align: center;
-      font-size: 1.5em;
+      margin-bottom: 50px;
+      user-select: none;
+      animation: fadeInDown 1s ease forwards;
     }
-    main {
-      max-width: 1200px;
-      margin: auto;
-      padding: 20px;
+
+    .intro h2 {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: 2.75rem;
+      margin: 0 0 16px;
+      letter-spacing: 2px;
+      text-shadow: 0 0 8px rgba(255, 255, 255, 0.6);
     }
-    .upload-controls, .progress-bar, .page-controls {
-      margin: 15px 0;
+
+    .intro p {
+      font-size: 1.3rem;
+      line-height: 1.5;
+      color: #e0e7ffdd;
+      max-width: 580px;
+      margin: 0 auto;
     }
-    .upload-controls {
+
+    @keyframes fadeInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-40px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .main-title {
+      font-family: 'Montserrat', sans-serif;
+      font-weight: 700;
+      font-size: 3rem;
+      margin: 0 0 40px;
+      color: #fff;
+      letter-spacing: 4px;
+      text-shadow: 0 0 10px rgba(255,255,255,0.9);
+      animation: glow 2.5s ease-in-out infinite alternate;
+      user-select: none;
+    }
+
+    @keyframes glow {
+      0% {
+        text-shadow: 0 0 6px #fff, 0 0 20px #a78bfa, 0 0 30px #8b5cf6;
+        color: #ede9fe;
+      }
+      100% {
+        text-shadow: 0 0 20px #fff, 0 0 40px #a78bfa, 0 0 60px #8b5cf6;
+        color: #c4b5fd;
+      }
+    }
+
+    .button-container {
       display: flex;
-      gap: 10px;
-      align-items: center;
-    }
-    .progress-bar {
-      height: 10px;
-      background: #e5e7eb;
-      border-radius: 6px;
-      overflow: hidden;
-    }
-    .progress {
-      height: 100%;
-      background: #3b82f6;
-      width: 0%;
-      transition: width 0.3s ease;
-    }
-    .status {
-      margin-top: 5px;
-      font-size: 0.95em;
-      color: #555;
-    }
-    .page-controls {
-      display: flex;
+      flex-wrap: wrap;
       justify-content: center;
-      gap: 20px;
-      align-items: center;
+      gap: 30px;
+      max-width: 700px;
+      width: 100%;
+      margin-bottom: 60px;
     }
-    .reader {
-      height: 70vh;
-      overflow-y: scroll;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      background: white;
-      padding: 10px;
-    }
-    .row {
-      display: flex;
-      gap: 20px;
-      border-bottom: 1px solid #eee;
-      padding: 10px 0;
-    }
-    .para {
-      flex: 1;
-      line-height: 1.6;
-      min-height: 2em;
-    }
-    .para:hover {
-      background: #f0f9ff;
-    }
-    .highlight {
-      background-color: #ffe9a8;
-    }
+
     button {
-      padding: 0.5em 1em;
-      background: #2563eb;
-      color: white;
+      background: linear-gradient(145deg, #8b5cf6, #7c3aed);
       border: none;
-      border-radius: 6px;
-      font-weight: 600;
+      border-radius: 16px;
+      box-shadow: 0 10px 20px rgba(139, 92, 246, 0.5);
+      color: white;
       cursor: pointer;
+      font-size: 1.25rem;
+      padding: 20px 42px;
+      min-width: 240px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      transition: all 0.3s ease;
+      user-select: none;
+      position: relative;
+      overflow: hidden;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
+      font-weight: 600;
     }
+
     button:hover {
-      background-color: #1d4ed8;
+      background: linear-gradient(145deg, #7c3aed, #5b21b6);
+      box-shadow: 0 14px 30px rgba(123, 63, 230, 0.7);
+      transform: translateY(-4px);
+    }
+
+    .icon-svg {
+      width: 28px;
+      height: 28px;
+      fill: white;
+      flex-shrink: 0;
+      animation: bounce 1.6s ease-in-out infinite;
+      user-select: none;
+      filter: drop-shadow(0 1px 1px rgba(0,0,0,0.15));
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    .guide {
+      max-width: 600px;
+      background: rgba(255, 255, 255, 0.12);
+      padding: 25px 30px;
+      border-radius: 24px;
+      box-shadow: 0 15px 30px rgba(0,0,0,0.1);
+      color: #e0d7ff;
+      font-size: 1.15rem;
+      display: flex;
+      align-items: center;
+      gap: 18px;
+      user-select: none;
+      animation: fadeInUp 1.2s ease forwards;
+    }
+
+    .rabbit-emoji {
+      font-size: 42px;
+      animation: bounce 1.8s ease-in-out infinite;
+      flex-shrink: 0;
+      user-select: none;
+      text-shadow: 0 1px 4px rgba(0,0,0,0.15);
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(40px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @media (max-width: 480px) {
+      button {
+        min-width: 100%;
+        font-size: 1.1rem;
+        padding: 16px 20px;
+      }
+      .button-container {
+        gap: 20px;
+      }
+      .guide {
+        font-size: 1rem;
+        flex-direction: column;
+        text-align: center;
+      }
     }
   </style>
 </head>
 <body>
-  <header>📘 PDF 双语阅读器</header>
-  <main>
-    <div class="upload-controls">
-      <input type="file" id="pdfFile" accept="application/pdf" />
-      <button onclick="uploadPDF()">上传 PDF</button>
-      <button onclick="startTranslate()">整书翻译</button>
+
+  <section class="intro" aria-label="Introduction">
+    <h2>Welcome to Your Ultimate Bilingual Translator!</h2>
+    <p>
+      Effortlessly translate your PDFs or text between multiple languages with blazing speed and crystal-clear accuracy.
+      Dive into your personalized library, manage your uploads, and experience smooth reading and translation all in one place.
+      Let's bridge language barriers with style and ease.
+    </p>
+  </section>
+
+  <h1 class="main-title" aria-label="Select input method">Choose Your Input Method</h1>
+
+  <div class="button-container" role="navigation" aria-label="Input methods navigation">
+    <button onclick="location.href='/pdf_upload'" aria-label="Upload and translate PDF">
+      <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M5 20h14v-2H5v2zm7-18v10l3.5-3.5 1.42 1.42L12 17l-6.92-6.92 1.42-1.42L11 12V2h1z"/>
+      </svg>
+      Upload & Translate PDF
+    </button>
+    <button onclick="location.href='/text_input'" aria-label="Translate text input">
+      <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M12 3v2h4v4h2V3h-6zm-1 8H6v2h5v5h2v-7zm-1 7h2v2h-2v-2z"/>
+      </svg>
+      Translate Text
+    </button>
+    <button onclick="location.href='/library_page'" aria-label="Open your library">
+      <svg class="icon-svg" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <path d="M4 6h16v12H4z" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M4 6h16v2H4z" fill="currentColor"/>
+        <path d="M7 10h10v6H7z" fill="none" stroke="currentColor" stroke-width="2"/>
+      </svg>
+      My Library
+    </button>
+  </div>
+
+  <div class="guide" aria-label="User guide">
+    <div class="rabbit-emoji" aria-hidden="true">🐰</div>
+    <div>
+      Hey there! I’m Rabbit, your friendly translation companion. 🐇<br />
+      Click a button above to get started — translating has never been this stylish and fun!
     </div>
+  </div>
 
-    <div class="progress-bar"><div id="uploadBar" class="progress"></div></div>
-    <div class="status" id="uploadStatus">请上传 PDF 文件</div>
-
-    <div class="progress-bar"><div id="translateBar" class="progress"></div></div>
-    <div class="status" id="translateStatus">翻译未开始</div>
-
-    <div class="page-controls" style="display:none;" id="pageControls">
-      <button onclick="prevPage()">上一页</button>
-      <span>第 <span id="pageNum">1</span> 页 / 共 <span id="totalPages">0</span> 页</span>
-      <button onclick="nextPage()">下一页</button>
-    </div>
-
-    <div class="reader" id="reader"></div>
-  </main>
-
-  <script>
-    let filename = "";
-    let currentPage = 0;
-    let totalPages = 0;
-    let translationInterval = null;
-
-    function uploadPDF() {
-      const fileInput = document.getElementById("pdfFile");
-      const file = fileInput.files[0];
-      if (!file) return alert("请选择一个PDF文件");
-
-      const formData = new FormData();
-      formData.append("file", file);
-
-      document.getElementById("uploadStatus").innerText = "上传中...";
-      document.getElementById("uploadBar").style.width = "10%";
-
-      fetch("http://127.0.0.1:8000/upload/", {
-        method: "POST",
-        body: formData,
-      })
-      .then(res => res.json())
-      .then(data => {
-        filename = data.filename;
-        totalPages = data.total_pages;
-        currentPage = 0;
-        document.getElementById("uploadBar").style.width = "100%";
-        document.getElementById("uploadStatus").innerText = "上传完成 ✅";
-        document.getElementById("totalPages").innerText = totalPages;
-        document.getElementById("pageControls").style.display = "flex";
-        loadPage(currentPage);
-      })
-      .catch(() => {
-        document.getElementById("uploadStatus").innerText = "上传失败";
-      });
-    }
-
-    function startTranslate() {
-      if (!filename) return alert("请先上传 PDF 文件");
-
-      fetch(`http://127.0.0.1:8000/translate_all/?filename=${filename}`, { method: "POST" })
-        .then(() => {
-          document.getElementById("translateStatus").innerText = "正在整书翻译中...";
-          translationInterval = setInterval(checkTranslateProgress, 1000);
-        });
-    }
-
-    function checkTranslateProgress() {
-      fetch(`http://127.0.0.1:8000/translation_status/?filename=${filename}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.error) return;
-
-          const percent = Math.round((data.done / data.total) * 100);
-          document.getElementById("translateBar").style.width = percent + "%";
-          document.getElementById("translateStatus").innerText = `翻译进度：${data.done}/${data.total}`;
-
-          if (data.done >= data.total && translationInterval) {
-            clearInterval(translationInterval);
-            document.getElementById("translateStatus").innerText = "整书翻译完成 ✅";
-          }
-        });
-    }
-
-    function loadPage(page) {
-      if (page < 0 || page >= totalPages) return;
-
-      document.getElementById("pageNum").innerText = page + 1;
-      document.getElementById("reader").innerHTML = "加载中...";
-
-      fetch(`http://127.0.0.1:8000/get_page/?filename=${filename}&page=${page}`)
-        .then(res => res.json())
-        .then(data => {
-          const reader = document.getElementById("reader");
-          reader.innerHTML = "";
-
-          const original = data.original || [];
-          const translation = data.translation || [];
-
-          for (let i = 0; i < Math.max(original.length, translation.length); i++) {
-            const row = document.createElement("div");
-            row.className = "row";
-
-            const oPara = document.createElement("div");
-            oPara.className = "para original";
-            oPara.textContent = original[i] || "";
-
-            const tPara = document.createElement("div");
-            tPara.className = "para translation";
-            tPara.textContent = translation[i] || "";
-
-            oPara.onclick = () => {
-              document.querySelectorAll(".highlight").forEach(el => el.classList.remove("highlight"));
-              oPara.classList.add("highlight");
-              tPara.classList.add("highlight");
-              tPara.scrollIntoView({ behavior: "smooth", block: "center" });
-            };
-
-            row.appendChild(oPara);
-            row.appendChild(tPara);
-            reader.appendChild(row);
-          }
-        });
-    }
-
-    function prevPage() {
-      if (currentPage > 0) {
-        currentPage--;
-        loadPage(currentPage);
-      }
-    }
-
-    function nextPage() {
-      if (currentPage < totalPages - 1) {
-        currentPage++;
-        loadPage(currentPage);
-      }
-    }
-  </script>
 </body>
 </html>
