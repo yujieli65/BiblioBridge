@@ -150,7 +150,7 @@
 
     let currentPage = 0;
     let totalPages = 0;
-    const srcLang = "zh";  // 可以改为动态选择
+    const srcLang = "zh";  
     const tgtLang = "en";
 
     const prevBtn = document.getElementById("prevBtn");
@@ -205,7 +205,6 @@
           reader.appendChild(row);
         }
 
-        // 按钮状态
         prevBtn.disabled = currentPage <= 0;
         nextBtn.disabled = currentPage >= totalPages - 1;
 
@@ -222,8 +221,6 @@
     nextBtn.onclick = () => {
       if (currentPage < totalPages - 1) loadPage(currentPage + 1);
     };
-
-    // 初始化
     loadPage(0);
   </script>
 </body>

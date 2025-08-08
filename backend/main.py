@@ -34,7 +34,6 @@ LANG_MODEL_MAP: Dict[Tuple[str, str], str] = {
     ("en", "zh"): "Helsinki-NLP/opus-mt-en-zh",
     ("en", "fr"): "Helsinki-NLP/opus-mt-en-fr",
     ("fr", "en"): "Helsinki-NLP/opus-mt-fr-en",
-    # 你可以根据需要加更多语言对
 }
 
 MODEL_CACHE: Dict[Tuple[str, str], Tuple[MarianTokenizer, MarianMTModel]] = {}
@@ -115,7 +114,7 @@ def load_cache(filename: str, page: int, src_lang: str, tgt_lang: str):
 async def read_index(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
-# 文本输入页面
+
 @app.get("/text_input", response_class=HTMLResponse)
 async def text_input_page(request: Request):
     return templates.TemplateResponse("text_input.html", {"request": request})
@@ -131,12 +130,10 @@ async def library_page(request: Request):
 
 @app.get("/library/")
 def list_library():
-    # 这里返回缓存目录里所有上传过的文件及页数
     books = []
     for filename in os.listdir(UPLOAD_DIR):
         if not filename.lower().endswith(".pdf"):
             continue
-        # 简单统计页数：缓存里有多少页
         pages = len([f for f in os.listdir(CACHE_DIR) if f.startswith(filename)])
         books.append({
             "filename": filename,
@@ -147,11 +144,6 @@ def list_library():
 @app.get("/reader", response_class=HTMLResponse)
 async def reader_page(request: Request, filename: str = Query(...)):
     return templates.TemplateResponse("reader.html", {"request": request, "filename": filename})
-
-
-
-
-# --- 新增文本翻译API ---
 
 @app.post("/translate_text/")
 async def translate_text(
